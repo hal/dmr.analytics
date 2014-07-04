@@ -21,6 +21,7 @@ class Sequencer(client: Client) {
      * Prepends the attributes to the specified list.
      */
     def attributesAndChildren(address: Address, allAttributes: ListBuffer[DmrAttribute]): Unit = {
+      println(s"Read $address")
       val node = ModelNode() at address op 'read_resource_description
 
       client ! node map {
@@ -47,7 +48,8 @@ class Sequencer(client: Client) {
               }
             case None => Nil
           }
-          allAttributes.prepend(dmrAttributes.toList: _*)
+          println(s"Adding ${dmrAttributes.size} attributes")
+          allAttributes.prependAll(dmrAttributes)
 
           // read nested types
           val childTypes = commonResult.get("children") match {

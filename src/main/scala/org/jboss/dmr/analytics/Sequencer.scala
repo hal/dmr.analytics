@@ -11,7 +11,7 @@ import org.jboss.dmr.scala._
  */
 class Sequencer(client: Client) {
 
-  def read(entryPoint: Address = root): Set[DmrAttribute] = {
+  def read(entryPoint: Address = root): List[DmrAttribute] = {
 
     /**
      * Reads the attributes and nested types of the specified address.
@@ -55,10 +55,10 @@ class Sequencer(client: Client) {
           // turn nested types into nested addresses
           val childAddresses = childTypes.map(childAddress(_, address))
 
-          // for each child address make a recursive call
           if (childAddresses.isEmpty)
             dmrAttributes.toList ::: allAttributes
           else
+            // for each child address make a recursive call
             childAddresses.flatMap(childAddress => attributesAndChildren(childAddress, dmrAttributes.toList ::: allAttributes)).toList
 
         // report an error as special DmrAttribute instance
@@ -84,7 +84,7 @@ class Sequencer(client: Client) {
     }
 
     // start recursion
-    // TODO If this was a list there would be lots of duplicates. Why?
-    Set(attributesAndChildren(entryPoint, Nil): _*)
+    // TODO Without distinct there are lots of duplicates. Why?
+    attributesAndChildren(entryPoint, Nil).distinct
   }
 }

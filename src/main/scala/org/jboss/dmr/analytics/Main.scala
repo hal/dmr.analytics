@@ -8,7 +8,7 @@ object Main {
   def main(args: Array[String]) {
     val client = connect()
     val sequencer = new Sequencer(client)
-    val attributes = sequencer.read("subsystem" -> "web")
+    val attributes = sequencer.read("subsystem" -> "logging")
     client.close()
 
     println(s"\n\nRead ${attributes.size} attributes:")

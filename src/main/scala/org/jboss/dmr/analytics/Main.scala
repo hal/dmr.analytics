@@ -8,14 +8,14 @@ object Main {
   def main(args: Array[String]) {
     val client = connect()
     val sequencer = new Sequencer(client)
-    val attributes = sequencer.read("subsystem" -> "logging")
+    val attributes = sequencer.read("subsystem" -> "transactions")
     client.close()
 
     println(s"\n\nRead ${attributes.size} attributes:")
     val attributeStrings = attributes map (attribute => {
-      val address = attribute.address.tuple map { case (key, value) => s"$key=$value"} mkString "/"
-      s"${attribute.name.padTo(30, ' ')}: ${attribute.`type`.`type`.padTo(10, ' ')} @ /$address"
+      s"${attribute.name.padTo(40, ' ')}: ${attribute.`type`.`type`.padTo(10, ' ')} @ ${attribute.address}"
     })
-    attributeStrings.foreach(println(_))
+
+    attributeStrings.sorted.foreach(println(_))
   }
 }

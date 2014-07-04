@@ -5,6 +5,9 @@ import org.jboss.dmr.repl.Response._
 import org.jboss.dmr.repl.{Client, Response}
 import org.jboss.dmr.scala._
 
+import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
+
 /**
  * Enters the management model at the specified entry point (or at the root if no entry point is given),
  * iterates over all attributes of all resources and turns them into a list of [[DmrAttribute]].
@@ -17,11 +20,11 @@ class Sequencer(client: Client) {
      * Reads the attributes and nested types of the specified address.
      * Prepends the attributes to the specified list.
      */
-    def attributesAndChildren(address: Address, allAttributes: List[DmrAttribute]): List[DmrAttribute] = {
+    def attributesAndChildren(address: Address, allAttributes: ListBuffer[DmrAttribute]): Unit = {
       println(s"Read $address")
       val node = ModelNode() at address op 'read_resource_description
 
-      val clientResult = client ! node map {
+      client ! node map {
         case Response(Success, result) =>
           // the result comes in two flavours:
           //   - simple model node for none-wildcard rrd operations
@@ -35,14 +38,17 @@ class Sequencer(client: Client) {
             case _ => ModelNode.Undefined
           }
 
-          // if there are attributes, read and turn them into a collection of DmrAttribute
+          // if there are attributes, read the key value tuples and turn them into a collection of DmrAttribute
           val dmrAttributes = commonResult.get("attributes") match {
-            case Some(levelAttributes) => levelAttributes map {
-              case (attributeName, metaData) => DmrAttribute(attributeName,
-                AttributeType(metaData("type").asString.getOrElse("UNDEFINED")), address, metaData)
-            }
+            case Some(levelAttributes: ModelNode) =>
+              levelAttributes map {
+                case (attributeName: String, metaData: ModelNode) =>
+                  DmrAttribute(attributeName,
+                    AttributeType(metaData("type").asString.getOrElse("UNDEFINED")), address, metaData)
+              }
             case None => Nil
           }
+          allAttributes.prepend(dmrAttributes.toList: _*)
 
           // read nested types
           val childTypes = commonResult.get("children") match {
@@ -55,25 +61,26 @@ class Sequencer(client: Client) {
           // turn nested types into nested addresses
           val childAddresses = childTypes.map(childAddress(_, address))
 
-          if (childAddresses.isEmpty)
-            dmrAttributes.toList ::: allAttributes
-          else
-            // for each child address make a recursive call
-            childAddresses.flatMap(childAddress => attributesAndChildren(childAddress, dmrAttributes.toList ::: allAttributes)).toList
+          if (childAddresses.nonEmpty)
+            childAddresses.foreach(address => {
+              attributesAndChildren(address, allAttributes)
+            })
 
         // report an error as special DmrAttribute instance
-        case Response(Failure, error) => DmrAttribute.error(address, error) :: allAttributes
+        case Response(Failure, error) => allAttributes.prepend(DmrAttribute.error(address, error))
       }
-      clientResult.get
     }
 
     /** Create an address for the child type underneath the resource */
     def childAddress(childType: String, resource: Address) = {
+
       val node = ModelNode() at resource op 'read_children_names('child_type -> childType)
+
       val clientResult = client ! node map {
         case Response(Success, result) => result match {
           case ModelNode(LIST) => result.values match {
             // If there are child resource(s), use the first one for the address
+            // TODO There might be differences in the number of attributes between the siblings!
             case (headNode :: _) => resource / (childType -> headNode.asString.get)
             // otherwise try with "*" (which might not be supported)
             case Nil => resource / (childType -> "*")
@@ -84,7 +91,8 @@ class Sequencer(client: Client) {
     }
 
     // start recursion
-    // TODO Without distinct there are lots of duplicates. Why?
-    attributesAndChildren(entryPoint, Nil).distinct
+    val collectedAttributes = ListBuffer[DmrAttribute]()
+    attributesAndChildren(entryPoint, collectedAttributes)
+    return collectedAttributes.toList
   }
 }

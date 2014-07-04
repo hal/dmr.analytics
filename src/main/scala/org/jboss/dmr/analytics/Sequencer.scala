@@ -21,7 +21,6 @@ class Sequencer(client: Client) {
      * Prepends the attributes to the specified list.
      */
     def attributesAndChildren(address: Address, allAttributes: ListBuffer[DmrAttribute]): Unit = {
-      println(s"Read $address")
       val node = ModelNode() at address op 'read_resource_description
 
       client ! node map {

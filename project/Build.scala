@@ -36,7 +36,7 @@ object Dependency {
     val Spark = "1.0.0"
     val ScalaTest = "2.1.4"
     val ScalaCheck = "1.11.3"
-    val DmrRepl = "0.2.0"
+    val DmrRepl = "0.2.2"
   }
 
   val sparkCore = "org.apache.spark" %% "spark-core" % Version.Spark

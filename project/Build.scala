@@ -33,16 +33,18 @@ object Resolvers {
 object Dependency {
 
   object Version {
-    val Spark = "1.0.0"
-    val ScalaTest = "2.1.4"
-    val ScalaCheck = "1.11.3"
     val DmrRepl = "0.2.2"
+    val ScalaCheck = "1.11.3"
+    val ScalaLogging = "2.1.2"
+    val ScalaTest = "2.1.4"
+    val Spark = "1.0.0"
   }
 
+  val dmrRepl = "org.jboss" %% "dmr-repl" % Version.DmrRepl
+  val scalaLogging = "com.typesafe.scala-logging"  %% "scala-logging-slf4j" % Version.ScalaLogging
   val sparkCore = "org.apache.spark" %% "spark-core" % Version.Spark
   val sparkStreaming = "org.apache.spark" %% "spark-streaming" % Version.Spark
   val sparkRepl = "org.apache.spark" %% "spark-repl" % Version.Spark
-  val dmrRepl = "org.jboss" %% "dmr-repl" % Version.DmrRepl
 
   val scalaTest = "org.scalatest" %% "scalatest" % Version.ScalaTest % "test"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % Version.ScalaCheck % "test"
@@ -52,7 +54,7 @@ object Dependencies {
 
   import Dependency._
 
-  val dmrAnalytics = Seq(sparkCore, sparkStreaming, sparkRepl, dmrRepl, scalaTest, scalaCheck)
+  val dmrAnalytics = Seq(sparkCore, sparkStreaming, sparkRepl, scalaLogging, dmrRepl, scalaTest, scalaCheck)
 }
 
 object DmrAnalyticsBuild extends Build {

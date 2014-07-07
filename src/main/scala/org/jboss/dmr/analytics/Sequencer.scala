@@ -112,7 +112,7 @@ class Sequencer(client: Client) extends Logging {
             Nil
         }
         attributes.prependAll(dmrAttributes)
-        logger.debug(s"Added ${dmrAttributes.size} attributes. New size: ${attributes.size}")
+        if (dmrAttributes.nonEmpty) logger.debug(s"Added ${dmrAttributes.size} attributes. New size: ${attributes.size}")
 
         // read children types and turn them into a list of strings
         val childTypes = rrdResult.get("children") match {
@@ -126,7 +126,11 @@ class Sequencer(client: Client) extends Logging {
         childTypes.foreach(childType => readChildren(rrdAddress, childType))
       }
 
-      /** Read the children of the specified type either by using a wildcard or by explicitly iterating over all children */
+      /**
+       * Read the children of the specified type either by using a wildcard or
+       * by explicitly iterating over all children.
+       * Reading children means calling [[rrd()]] recursively.
+       */
       def readChildren(rrdAddress: Address, childType: String): Unit = {
         // Check wildcard support
         val childAddress = rrdAddress / (childType -> "*")

@@ -12,7 +12,7 @@ object Main {
     val logger = Logger(LoggerFactory.getLogger("org.jboss.dmr.analytics.Main"))
     val client = connect("localhost", 9990)
     val sequencer = new Sequencer(client)
-    val data = sequencer.read("subsystem" -> "jmx")
+    val data = sequencer.read()
     client.close()
 
     // Log attributes

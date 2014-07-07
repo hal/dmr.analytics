@@ -1,7 +1,5 @@
 package org.jboss.dmr.analytics
 
-import java.util
-
 import com.typesafe.scalalogging.slf4j.Logging
 import org.jboss.dmr.ModelType
 import org.jboss.dmr.ModelType.{LIST, OBJECT}
@@ -24,10 +22,10 @@ class Sequencer(client: Client) extends Logging {
      * Prepends the attributes to the specified list.
      */
     def attributesAndChildren(address: Address, level: Int, attributes: ListBuffer[DmrAttribute]) {
-      val node = ModelNode() at address op 'read_resource_description
+      val rrdOp = ModelNode() at address op 'read_resource_description
       logger.debug(s"Read resource description for $address")
 
-      client ! node map {
+      client ! rrdOp map {
         case Response(Success, result: ModelNode) =>
           // the result comes in two flavours:
           //   - simple model node for none-wildcard rrd operations
@@ -56,7 +54,7 @@ class Sequencer(client: Client) extends Logging {
                   logger.debug(s"Creating DmrAttribute($attributeName)")
                   val typeValue = metaData.get("type").flatMap(_.asString)
                   val modelType = ModelType.valueOf(typeValue.getOrElse("UNDEFINED"))
-                  DmrAttribute(attributeName, modelType, address, parseMetaData(metaData))
+                  DmrAttribute(attributeName, modelType, address, parseMetaData(metaData, level))
               }
             case None =>
               logger.warn(s"No attributes found for read-resource-description @ $address")
@@ -65,7 +63,7 @@ class Sequencer(client: Client) extends Logging {
           attributes.prependAll(dmrAttributes)
           logger.debug(s"Added ${dmrAttributes.size} attributes. New size: ${attributes.size}")
 
-          // read nested types
+          // read children types
           val childrenTypes = commonResult.get("children") match {
             case Some(children: ModelNode) =>
               children map {
@@ -75,15 +73,8 @@ class Sequencer(client: Client) extends Logging {
           }
           logger.debug(s"Found ${childrenTypes.size} children types: $childrenTypes")
 
-          // turn nested types into nested addresses
-          val childrenAddresses = childrenTypes.map(childAddress(_, address))
-          logger.debug(s"Addresses for the children types: $childrenAddresses")
-
-          // read next resource recursively
-          childrenAddresses.foreach(address => {
-            if (address.isDefined)
-              attributesAndChildren(address.get, level + 1, attributes)
-          })
+          // Enter recursion by reading nested (childType -> childName) resources
+          childrenTypes.foreach(childType => readChildren(address, childType))
 
         case Response(Failure, failure: ModelNode) =>
           val error = failure.asString getOrElse "undefined"
@@ -91,39 +82,32 @@ class Sequencer(client: Client) extends Logging {
           // report an error as special DmrAttribute instance
           attributes.prepend(DmrAttribute.error(error, address))
       }
-    }
 
-    /** Create an address for the child type underneath the resource */
-    def childAddress(childType: String, address: Address): Option[Address] = {
+      def readChildren(address: Address, childType: String): Unit = {
+        val childrenOperation = ModelNode() at address op 'read_children_names('child_type -> childType)
+        client ! childrenOperation map {
+          case Response(Success, result: ModelNode) =>
+            result.asList match {
 
-      val node = ModelNode() at address op 'read_children_names('child_type -> childType)
-      logger.debug(s"Reading children names for type $childType")
+              case Some(children) =>
+                val childrenAddresses = for {
+                  child <- children
+                  childName <- child.asString
+                } yield address / (childType -> childName)
 
-      val result = client ! node map {
-        case Response(Success, result: ModelNode) =>
-          result match {
-            case ModelNode(LIST) =>
-              result.values match {
-                // If there are child resource(s), use the first one for the address
-                // TODO For some resources the set of attributes is different among the children
-                case (headNode :: _) =>
-                  val firstChild = headNode.asString.get
-                  logger.debug(s"Found ${result.values.size} children: ${result.values} and taking the first one: $firstChild")
-                  address / (childType -> firstChild)
-                // otherwise try with "*" (which might not be supported)
-                case Nil =>
-                  logger.debug(s"Found no children -> using the wildcard operator")
-                  address / (childType -> "*")
-              }
-          }
-        case Response(Failure, error: ModelNode) =>
-          logger.error(s"Error reading children names @ $address: $error")
-          throw new Exception // will result in a Failure[Address] and is mapped to a None[Address] (see below)
+                childrenAddresses.foreach(childAddress => {
+                  attributesAndChildren(childAddress, level + 1, attributes)
+                })
+
+              case None => Nil
+            }
+          case Response(Failure, failure: ModelNode) =>
+            logger.error(s"Unable to read child @ $address: ${failure.asString}")
+        }
       }
-      result.toOption
     }
 
-    def parseMetaData(node: ModelNode): MetaData = {
+    def parseMetaData(node: ModelNode, depth: Int): MetaData = {
 
       def parseValues(attribute: String): List[String] = {
         val nodes = node.get(attribute) flatMap(_.asList) getOrElse Nil
@@ -153,14 +137,13 @@ class Sequencer(client: Client) extends Logging {
       val allowedValues = parseValues("allowed")
       val alternatives = parseValues("alternatives")
       val requires = parseValues("requires")
-
       val accessType = parseEnum("access", AccessType.UNKNOWN, AccessType.withName)
       val restartPolicy = parseEnum("restart-required", RestartPolicy.UNKNOWN, RestartPolicy.withName)
       val storage = parseEnum("storage", Storage.UNKNOWN, Storage.withName)
       val deprecated = node.get("deprecated").isDefined
       val alias = node.get("alias") flatMap (_.asString)
 
-      MetaData(description, allowNull, allowExpression, hasDefaultValue, allowedValues, alternatives, requires,
+      MetaData(description, depth, allowNull, allowExpression, hasDefaultValue, allowedValues, alternatives, requires,
         accessType, restartPolicy, storage, deprecated, alias)
     }
 

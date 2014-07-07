@@ -8,6 +8,7 @@ import org.jboss.dmr.scala.Address
 
 /** Parsed version of an attributes meta data which roughly reflects [org.jboss.as.controller.AttributeDefinition] */
 case class MetaData(description: String,
+                    depth: Int = -1,
                     allowNull: Boolean = true,
                     allowExpression: Boolean = true,
                     hasDefaultValue: Boolean = false,

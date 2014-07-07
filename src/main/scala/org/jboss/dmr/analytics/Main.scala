@@ -13,16 +13,16 @@ object Main {
     val logger = Logger(LoggerFactory.getLogger("org.jboss.dmr.analytics.Main"))
     val client = connect("localhost", 9990)
     val sequencer = new Sequencer(client)
-    val data = sequencer.read("subsystem" -> "datasources")
+    val data = sequencer.read()
     client.close()
 
     // Log attributes
-    logger.debug(s"Read ${data.size} attributes:")
-    val infos = data map (attribute => {
-      s"${attribute.name.padTo(40, ' ')}: ${attribute.`type`.name().padTo(10, ' ')} @ ${attribute.address}"
-    })
-    infos.sorted.foreach(info => logger.debug(info))
-
+    logger.info(s"Read ${data.size} attributes:")
+//    val infos = data.sortBy(attribute => attribute.address) map (attribute => {
+//      s"${attribute.name.padTo(40, ' ')}: ${attribute.`type`.name().padTo(10, ' ')} @ ${attribute.address}"
+//    })
+//    infos.foreach(info => logger.debug(info))
+//
     // Let's Spark...
     val sc = new SparkContext("local", "DMR Analytics")
     try {

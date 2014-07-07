@@ -3,7 +3,6 @@ package org.jboss.dmr.analytics
 import com.typesafe.scalalogging.slf4j.Logger
 import org.apache.spark.SparkContext
 import org.jboss.dmr.repl.Client._
-import org.jboss.dmr.scala._
 import org.slf4j.LoggerFactory
 
 object Main {
@@ -13,16 +12,16 @@ object Main {
     val logger = Logger(LoggerFactory.getLogger("org.jboss.dmr.analytics.Main"))
     val client = connect("localhost", 9990)
     val sequencer = new Sequencer(client)
-    val data = sequencer.read()
+    val data = sequencer.read("subsystem" -> "jmx")
     client.close()
 
     // Log attributes
     logger.info(s"Read ${data.size} attributes:")
-//    val infos = data.sortBy(attribute => attribute.address) map (attribute => {
-//      s"${attribute.name.padTo(40, ' ')}: ${attribute.`type`.name().padTo(10, ' ')} @ ${attribute.address}"
-//    })
-//    infos.foreach(info => logger.debug(info))
-//
+    val infos = data.sortBy(attribute => attribute.address) map (attribute => {
+      s"${attribute.name.padTo(40, ' ')}: ${attribute.`type`.name().padTo(10, ' ')} @ ${attribute.address}"
+    })
+    infos.foreach(info => logger.debug(info))
+
     // Let's Spark...
     val sc = new SparkContext("local", "DMR Analytics")
     try {

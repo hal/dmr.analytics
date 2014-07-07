@@ -1,25 +1,7 @@
 package org.jboss.dmr.analytics
 
 import org.jboss.dmr.ModelType
-import org.jboss.dmr.analytics.AccessType.AccessType
-import org.jboss.dmr.analytics.RestartPolicy.RestartPolicy
-import org.jboss.dmr.analytics.Storage.Storage
 import org.jboss.dmr.scala.Address
-
-/** Parsed version of an attributes meta data which roughly reflects [org.jboss.as.controller.AttributeDefinition] */
-case class MetaData(description: String,
-                    depth: Int = -1,
-                    allowNull: Boolean = true,
-                    allowExpression: Boolean = true,
-                    hasDefaultValue: Boolean = false,
-                    allowedValues: List[String] = Nil,
-                    alternatives: List[String] = Nil,
-                    requires: List[String] = Nil,
-                    accessTyp: AccessType = AccessType.UNKNOWN,
-                    restartPolicy: RestartPolicy = RestartPolicy.UNKNOWN,
-                    storage: Storage = Storage.UNKNOWN,
-                    deprecated: Boolean = false,
-                    alias: Option[String] = None)
 
 /**
  * Case class describing one attribute of a resource in the management model.

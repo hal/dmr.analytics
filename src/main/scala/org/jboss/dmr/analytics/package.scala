@@ -5,7 +5,7 @@ package object analytics {
   /** Taken from [org.jboss.as.controller.registry.AttributeAccess.AccessType] */
   object AccessType extends Enumeration {
     type AccessType = Value
-    val UNKNOWN = Value("unknown")
+    val NA = Value("n/a")
     val READ_ONLY = Value("read-only")
     val READ_WRITE = Value("read-write")
     val METRIC = Value("metric")
@@ -14,7 +14,7 @@ package object analytics {
   /** Taken from [org.jboss.as.controller.registry.AttributeAccess.Flag] */
   object RestartPolicy extends Enumeration {
     type RestartPolicy = Value
-    val UNKNOWN = Value("unknown")
+    val NA = Value("n/a")
     val RESTART_NONE = Value("no-services")
     val RESTART_JVM = Value("jvm")
     val RESTART_ALL_SERVICES = Value("all-services")
@@ -24,7 +24,7 @@ package object analytics {
   /** Taken from [org.jboss.as.controller.registry.AttributeAccess.Flag] */
   object Storage extends Enumeration {
     type Storage = Value
-    val UNKNOWN = Value("unknown")
+    val NA = Value("n/a")
     val CONFIGURATION = Value("configuration")
     val RUNTIME = Value("runtime")
   }

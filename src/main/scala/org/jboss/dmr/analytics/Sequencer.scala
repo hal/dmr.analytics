@@ -104,7 +104,7 @@ class Sequencer(client: Client) extends Logging {
               case (attributeName: String, metaData: ModelNode) =>
                 logger.debug(s"Creating DmrAttribute($attributeName)")
                 val typeValue = metaData.get("type").flatMap(_.asString)
-                val modelType = ModelType.valueOf(typeValue.getOrElse("UNDEFINED"))
+                val modelType = ModelType.valueOf(typeValue.getOrElse(ModelType.UNDEFINED.name()))
                 DmrAttribute(attributeName, modelType, rrdAddress, MetaData.parse(metaData, level))
             }
           case None =>

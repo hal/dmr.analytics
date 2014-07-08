@@ -21,11 +21,11 @@ object Main {
 
     // Log attributes
     logger.info(s"Read ${data.size} attributes:")
-    //    val infos = data.sortBy(attribute => attribute.address) map (attribute => {
-    //      s"${attribute.name.padTo(40, ' ')}: ${attribute.`type`.name().padTo(10, ' ')} @ ${attribute.address}"
-    //    })
-    //    infos.foreach(info => logger.debug(info))
-    //
+//        val infos = data.sortBy(attribute => attribute.address) map (attribute => {
+//          s"${attribute.name.padTo(40, ' ')}: ${attribute.`type`.name().padTo(10, ' ')} @ ${attribute.address} (${attribute.metaData.valueType.name()})"
+//        })
+//        infos.foreach(info => logger.debug(info))
+
 
     // Let's Spark...
     val sc = new SparkContext("local", "DMR Analytics")
@@ -72,7 +72,7 @@ object Main {
           val atts = item._2
           for(
             att <- atts
-          ) yield s"$address,${att.name},${att.`type`},${att.metaData.storage},${att.metaData.accessTyp},${att.metaData.allowNull},${att.metaData.hasDefaultValue},${att.metaData.alternatives.nonEmpty},${att.metaData.alias.nonEmpty},${att.metaData.allowedValues.nonEmpty},${att.metaData.restartPolicy.toString}"
+          ) yield s"$address,${att.name},${att.`type`},${att.metaData.storage},${att.metaData.accessType},${att.metaData.allowNull},${att.metaData.hasDefaultValue},${att.metaData.alternatives.nonEmpty},${att.metaData.alias.nonEmpty},${att.metaData.allowedValues.nonEmpty},${att.metaData.restartPolicy.toString}"
 
         })
 

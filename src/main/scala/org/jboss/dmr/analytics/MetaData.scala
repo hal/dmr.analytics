@@ -4,16 +4,16 @@ import org.jboss.dmr.ModelType
 import org.jboss.dmr.analytics.AccessType.AccessType
 import org.jboss.dmr.analytics.RestartPolicy.RestartPolicy
 import org.jboss.dmr.analytics.Storage.Storage
-import org.jboss.dmr.scala.{ValueModelNode, ModelNode}
+import org.jboss.dmr.scala.{ModelNode, ValueModelNode}
 
-import scala.util.{Success, Try}
+import scala.util.Try
 
 object MetaData {
 
   def parse(node: ModelNode, depth: Int): MetaData = {
 
     def parseValues(attribute: String): List[String] = {
-      val nodes = node.get(attribute) flatMap(_.asList) getOrElse Nil
+      val nodes = node.get(attribute) flatMap (_.asList) getOrElse Nil
       val values = for {
         node <- nodes
         value <- node.asString
@@ -28,7 +28,10 @@ object MetaData {
       } yield stringValue
 
       value match {
-        case Some(enumLiteral) => valueToEnum(enumLiteral)
+        case Some(stringValue) =>
+          Try {
+            valueToEnum(stringValue)
+          } getOrElse defaultValue
         case None => defaultValue
       }
     }
@@ -46,8 +49,9 @@ object MetaData {
       case Some(vtNode) =>
         vtNode match {
           case vmn: ValueModelNode =>
-            val possibleValueType = Try(ModelType.valueOf(vmn.asString.getOrElse(ModelType.UNDEFINED.name())))
-            possibleValueType.getOrElse(ModelType.UNDEFINED)
+            Try {
+              ModelType.valueOf(vmn.asString.getOrElse(ModelType.UNDEFINED.name()))
+            } getOrElse ModelType.UNDEFINED
           case _ =>
             ModelType.OBJECT
         }

@@ -37,11 +37,11 @@ object MetaData {
     val allowedValues = parseValues("allowed")
     val alternatives = parseValues("alternatives")
     val requires = parseValues("requires")
-    val accessType = parseEnum("access", AccessType.UNKNOWN, AccessType.withName)
+    val accessType = parseEnum("access-type", AccessType.UNKNOWN, AccessType.withName)
     val restartPolicy = parseEnum("restart-required", RestartPolicy.UNKNOWN, RestartPolicy.withName)
     val storage = parseEnum("storage", Storage.UNKNOWN, Storage.withName)
     val deprecated = node.get("deprecated").isDefined
-    val alias = node.get("alias") flatMap (_.asString)
+    val alias = node.get("aliases") flatMap (_.asString)
 
     MetaData(description, depth, allowNull, allowExpression, hasDefaultValue, allowedValues, alternatives, requires,
       accessType, restartPolicy, storage, deprecated, alias)

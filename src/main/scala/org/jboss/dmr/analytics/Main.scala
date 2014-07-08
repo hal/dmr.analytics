@@ -66,13 +66,13 @@ object Main {
 
       // the raw data
       writeCSV[(Address, Iterable[DmrAttribute])]("attributes", resources.collect(),
-        () => "address,name,type,accessType,allowNull,hasDefault,hasAlternatives,hasAliases",
+        () => "address,name,type,storage,accessType,allowNull,hasDefault,hasAlternatives,hasAliases,isEnum,restartPolicy",
         (item) => {
           val address = item._1.toString()
           val atts = item._2
           for(
             att <- atts
-          ) yield s"$address,${att.name},${att.`type`},${att.metaData.accessTyp},${att.metaData.allowNull},${att.metaData.hasDefaultValue},${att.metaData.alternatives.nonEmpty},${att.metaData.alias.nonEmpty}"
+          ) yield s"$address,${att.name},${att.`type`},${att.metaData.storage},${att.metaData.accessTyp},${att.metaData.allowNull},${att.metaData.hasDefaultValue},${att.metaData.alternatives.nonEmpty},${att.metaData.alias.nonEmpty},${att.metaData.allowedValues.nonEmpty},${att.metaData.restartPolicy.toString}"
 
         })
 

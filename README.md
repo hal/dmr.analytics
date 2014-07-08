@@ -2,7 +2,7 @@
 
 A bunch of utilities to analyze the WildFly management model.
 
-Requires SBT to run and execute the core facilities and pandas/ipython the run the notebooks used to analyze the model.
+Requires SBT to run and execute the core facilities and pandas/ipython to run the notebooks and analyze the model.
 
 ## Data export
 
@@ -21,3 +21,6 @@ Once the python tools are installed you can launch the notebook server with
 
 `./notebook.sh`
 
+## Examples
+
+An example notebook can be found [here](http://nbviewer.ipython.org/github/hal/dmr.analytics/blob/master/notebooks/AttributeMetaData.ipynb)

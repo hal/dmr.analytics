@@ -16,3 +16,4 @@ dist
 /.settings
 /project/*-shim.sbt
 *.class
+.ipynb_checkpoints/

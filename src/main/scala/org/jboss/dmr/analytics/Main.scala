@@ -18,8 +18,19 @@ object Main {
     logger.info(s"Reading attributes from $con")
     val client = connect(con._1, con._2)
     val sequencer = new Sequencer(client)
-    val attributes = sequencer.read()
+    val allAttributes = sequencer.read()
     client.close()
+
+    // filter attributes
+    def any[A](predicates: (A => Boolean)*): A => Boolean =
+      a => predicates.exists(predicate => predicate(a))
+
+    val deployments: (DmrAttribute) => Boolean =
+      dmrAttribute => dmrAttribute.address.tuple.contains("deployment" -> "*") && dmrAttribute.address.tuple.size > 1
+    // TODO filter anything else?
+    val (filtered, attributes) = allAttributes.partition(any(deployments))
+    logger.debug(s"Filtered resources:\n${filtered.map(a => (a.address, a.name)).mkString("\n")}")
+    logger.debug(s"Relevant resources:\n${attributes.map(a => (a.address, a.name)).mkString("\n")}")
     logger.info(s"Read ${attributes.size} attributes")
 
     if (attributes.nonEmpty) {

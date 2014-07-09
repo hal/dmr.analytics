@@ -1,11 +1,12 @@
 package org.jboss.dmr.analytics
 
-import org.jboss.dmr.ModelType
 import org.jboss.dmr.analytics.AccessType.AccessType
 import org.jboss.dmr.analytics.RestartPolicy.RestartPolicy
 import org.jboss.dmr.analytics.Storage.Storage
-import org.jboss.dmr.scala.{ModelNode, ValueModelNode}
+import org.jboss.dmr.scala.{ComplexModelNode, ModelNode, ValueModelNode}
+import org.jboss.dmr.{ModelType, ModelNode => JavaModelNode}
 
+import scala.collection.JavaConversions._
 import scala.util.Try
 
 object MetaData {
@@ -45,17 +46,17 @@ object MetaData {
     val allowedValues = parseValues("allowed")
     val alternatives = parseValues("alternatives")
     val requires = parseValues("requires")
-    val valueType = node.get("value-type") match {
+    val valueTypeInfo = node.get("value-type") match {
       case Some(vtNode) =>
         vtNode match {
           case vmn: ValueModelNode =>
-            Try {
+            val valueType = Try {
               ModelType.valueOf(vmn.asString.getOrElse(ModelType.UNDEFINED.name()))
             } getOrElse ModelType.UNDEFINED
-          case _ =>
-            ModelType.OBJECT
+            (valueType, 0)
+          case _ => (ModelType.OBJECT, vtNode.depth)
         }
-      case None => ModelType.UNDEFINED
+      case None => (ModelType.UNDEFINED, 0)
     }
     val accessType = parseEnum("access-type", AccessType.NA, AccessType.withName)
     val restartPolicy = parseEnum("restart-required", RestartPolicy.NA, RestartPolicy.withName)
@@ -64,7 +65,7 @@ object MetaData {
     val alias = node.get("aliases") flatMap (_.asString)
 
     MetaData(description, depth, allowNull, allowExpression, minLength, maxLength, hasDefaultValue, allowedValues,
-      alternatives, requires, valueType, accessType, restartPolicy, storage, deprecated, alias)
+      alternatives, requires, valueTypeInfo._1, valueTypeInfo._2, accessType, restartPolicy, storage, deprecated, alias)
   }
 }
 
@@ -80,6 +81,7 @@ case class MetaData(description: String,
                     alternatives: List[String] = Nil,
                     requires: List[String] = Nil,
                     valueType: ModelType = ModelType.UNDEFINED,
+                    valueTypeDepth: Int = 0,
                     accessType: AccessType = AccessType.NA,
                     restartPolicy: RestartPolicy = RestartPolicy.NA,
                     storage: Storage = Storage.NA,

@@ -1,6 +1,6 @@
 package org.jboss.dmr.analytics
 
-import com.typesafe.scalalogging.slf4j.Logging
+import com.typesafe.scalalogging.slf4j.StrictLogging
 import org.jboss.dmr.ModelType
 import org.jboss.dmr.ModelType.{LIST, OBJECT}
 import org.jboss.dmr.repl.Response._
@@ -13,7 +13,7 @@ import scala.collection.mutable.ListBuffer
  * Enters the management model at the specified entry point (or at the root if no entry point is given);
  * iterates over all attributes of all resources and turns them into a list of [[DmrAttribute]].
  */
-class Sequencer(client: Client) extends Logging {
+class Sequencer(client: Client) extends StrictLogging {
 
   def read(entryPoint: Address = root): List[DmrAttribute] = {
 
@@ -25,74 +25,78 @@ class Sequencer(client: Client) extends Logging {
       val rrdOp = ModelNode() at address op 'read_resource_description
       logger.debug(s"Read resource description for $address")
 
-      client ! rrdOp map {
-        case Response(Success, result: ModelNode) =>
-          // the result comes in two flavours:
-          //   - simple model node for none-wildcard rrd operations
-          //   - list model node for wildcard rrd operations
-          result match {
+      val rrdResult = client ! rrdOp
+      if (rrdResult.isFailure) logger.error(s"Cannot connect to server: " + rrdResult.failed.get.getMessage)
+      else {
+        rrdResult map {
+          case Response(Success, result: ModelNode) =>
+            // the result comes in two flavours:
+            //   - simple model node for none-wildcard rrd operations
+            //   - list model node for wildcard rrd operations
+            result match {
 
-            case ModelNode(OBJECT) =>
-              logger.debug(s"resource description for $address is a simple model node")
-              readAttributes(address, result)
+              case ModelNode(OBJECT) =>
+                logger.debug(s"resource description for $address is a simple model node")
+                readAttributes(address, result)
 
-            case ModelNode(LIST) =>
-              logger.debug(s"resource description(s) for $address are nested inside a list with ${result.values.size} element(s)")
-              // Turn rrd-nodes into tuples of (rrd-address, rrd-result)
-              val rrdTuples = result.values.map(rrdNode => {
-                val outcome = for {
-                  outcomeNode <- rrdNode.get("outcome")
-                  outcome <- outcomeNode.asString
-                } yield outcome
+              case ModelNode(LIST) =>
+                logger.debug(s"resource description(s) for $address are nested inside a list with ${result.values.size} element(s)")
+                // Turn rrd-nodes into tuples of (rrd-address, rrd-result)
+                val rrdTuples = result.values.map(rrdNode => {
+                  val outcome = for {
+                    outcomeNode <- rrdNode.get("outcome")
+                    outcome <- outcomeNode.asString
+                  } yield outcome
 
-                val possibleTuple = outcome match {
-                  case Some(Success) =>
-                    val addressTuples = rrdNode.get("address").flatMap(_.asList) getOrElse Nil
-                    val path = for {
-                      addressTuple <- addressTuples
-                      key = addressTuple.keys.head
-                      value = addressTuple.values.head.asString.get
-                    } yield key -> value
-                    val rrdAddress = Address(path)
-                    val rrdResult = rrdNode.getOrElse("result", ModelNode.Undefined)
-                    Some(Pair(rrdAddress, rrdResult))
+                  val possibleTuple = outcome match {
+                    case Some(Success) =>
+                      val addressTuples = rrdNode.get("address").flatMap(_.asList) getOrElse Nil
+                      val path = for {
+                        addressTuple <- addressTuples
+                        key = addressTuple.keys.head
+                        value = addressTuple.values.head.asString.get
+                      } yield key -> value
+                      val rrdAddress = Address(path)
+                      val rrdPayload = rrdNode.getOrElse("result", ModelNode.Undefined)
+                      Some((rrdAddress, rrdPayload))
 
-                  case _ =>
-                    logger.error(s"Error reading description element ${rrdNode.asString.getOrElse("undefined")}")
-                    None
+                    case _ =>
+                      logger.error(s"Error reading description element ${rrdNode.asString.getOrElse("undefined")}")
+                      None
+                  }
+                  possibleTuple.get // only return the successful tuples
+                })
+
+                // Split the tuples into a wildcard and none-wildcard list
+                val (wildcardTuples, noneWildcardTuples) = rrdTuples.partition(tuple => {
+                  val adr = tuple._1
+                  val lastPart = adr.tuple.reverse.head._2
+                  lastPart.equals("*")
+                })
+                if (wildcardTuples.nonEmpty) {
+                  // if there were wildcard tuples, process only the first one
+                  val (rrdAddress, rrdPayload) = wildcardTuples.head
+                  logger.debug(s"Proceed with the first wildcard address $rrdAddress")
+                  readAttributes(rrdAddress, rrdPayload)
+                } else {
+                  // otherwise process all none-wildcard tuples
+                  logger.debug(s"Proceed with all none-wildcard addresses ${noneWildcardTuples.map(_._1)}")
+                  noneWildcardTuples.foreach {
+                    case (rrdAddress, rrdPayload) => readAttributes(rrdAddress, rrdPayload)
+                  }
                 }
-                possibleTuple.get // only return the successful tuples
-              })
 
-              // Split the tuples into a wildcard and none-wildcard list
-              val (wildcardTuples, noneWildcardTuples) = rrdTuples.partition(tuple => {
-                val adr = tuple._1
-                val lastPart = adr.tuple.reverse.head._2
-                lastPart.equals("*")
-              })
-              if (wildcardTuples.nonEmpty) {
-                // if there were wildcard tuples, process only the first one
-                val (rrdAddress, rrdResult) = wildcardTuples.head
-                logger.debug(s"Proceed with the first wildcard address $rrdAddress")
-                readAttributes(rrdAddress, rrdResult)
-              } else {
-                // otherwise process all none-wildcard tuples
-                logger.debug(s"Proceed with all none-wildcard addresses ${noneWildcardTuples.map(_._1)}")
-                noneWildcardTuples.foreach {
-                  case (rrdAddress, rrdResult) => readAttributes(rrdAddress, rrdResult)
-                }
-              }
+              case _ =>
+                logger.error(s"Undefined result for read-resource-description @ $address")
+                ModelNode.Undefined
+            }
 
-            case _ =>
-              logger.error(s"Undefined result for read-resource-description @ $address")
-              ModelNode.Undefined
-          }
-
-        case Response(Failure, failure: ModelNode) =>
-          val error = failure.asString getOrElse "undefined"
-          logger.error(s"Error reading description @ $address: $error")
-          // report an error as special DmrAttribute instance
-          attributes.prepend(DmrAttribute.error(error, address))
+          case Response(Failure, failure: ModelNode) =>
+            val error = failure.asString getOrElse "undefined"
+            logger.error(s"Error reading description @ $address: $error")
+            // report an error as special DmrAttribute instance
+            attributes.prepend(DmrAttribute.error(error, address))
+        }
       }
 
       /** Read the attributes of a single rrd result node */
@@ -163,7 +167,7 @@ class Sequencer(client: Client) extends Logging {
                   childrenAddresses.foreach(rrd(_, level + 1, attributes))
 
                 case None =>
-                  logger.warn("Found no child names for for type $childType @ $address")
+                  logger.warn(s"Found no child names for for type $childType @ $address")
               }
             case Response(Failure, failure: ModelNode) =>
               logger.error(s"Unable to read child names for type $childType @ $rrdAddress: ${failure.asString}")
